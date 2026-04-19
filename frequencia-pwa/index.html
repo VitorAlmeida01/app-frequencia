@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Frequência">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Frequência</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg2: #111111;
+  --bg3: #1a1a1a;
+  --bg4: #222222;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #f0f0f0;
+  --text2: #888;
+  --text3: #555;
+  --red: #E24B4A;
+  --red-dim: rgba(226,75,74,0.15);
+  --green: #4CAF72;
+  --green-dim: rgba(76,175,114,0.15);
+  --orange: #F0913A;
+  --orange-dim: rgba(240,145,58,0.15);
+  --blue: #4A90D9;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ── Screens ── */
+.screen { display: none; flex-direction: column; min-height: 100dvh; animation: fadeUp 0.3s ease; }
+.screen.active { display: flex; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── Home ── */
+.home-header {
+  padding: 56px 24px 20px;
+  background: linear-gradient(180deg, #0a0a0a 0%, transparent 100%);
+  position: sticky; top: 0; z-index: 10;
+}
+.home-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.home-subtitle { font-size: 13px; color: var(--text3); margin-top: 2px; }
+
+.streak-card {
+  margin: 0 16px 8px;
+  background: var(--bg2);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.streak-card::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 120px; height: 120px;
+  background: radial-gradient(circle, rgba(226,75,74,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.streak-fire {
+  font-size: 40px;
+  line-height: 1;
+  filter: drop-shadow(0 0 12px rgba(226,75,74,0.5));
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+.streak-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--red);
+  line-height: 1;
+  letter-spacing: -2px;
+}
+.streak-info-label { font-size: 14px; color: var(--text); font-weight: 500; margin-top: 2px; }
+.streak-info-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.streak-stats { margin-left: auto; text-align: right; }
+.streak-stat-num { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; color: var(--text2); }
+.streak-stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ── Progress mini dots ── */
+.dots-strip {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.dots-strip::-webkit-scrollbar { display: none; }
+.dot-day {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 600;
+  transition: transform 0.15s;
+}
+.dot-day.done { background: var(--green); color: #fff; }
+.dot-day.partial { background: var(--orange); color: #fff; }
+.dot-day.empty { background: var(--bg3); color: var(--text3); border: 0.5px solid var(--border); }
+.dot-day.today { box-shadow: 0 0 0 2px var(--blue); }
+
+.section-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 16px 20px 8px;
+}
+
+/* ── Week cards ── */
+.week-card {
+  margin: 0 16px 10px;
+  background: var(--bg2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.week-card:hover { border-color: var(--border2); }
+.week-card.has-progress { border-color: rgba(76,175,114,0.2); }
+
+.week-row {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  gap: 12px;
+  user-select: none;
+}
+.week-row:active { background: var(--bg3); }
+.week-emoji { font-size: 22px; flex-shrink: 0; }
+.week-info { flex: 1; min-width: 0; }
+.week-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.week-dates { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.week-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-done { background: var(--green-dim); color: var(--green); }
+.badge-partial { background: var(--orange-dim); color: var(--orange); }
+.badge-none { background: var(--bg3); color: var(--text3); }
+
+.week-progress-bar {
+  height: 2px;
+  background: var(--bg3);
+  margin: 0 16px 12px;
+}
+.week-progress-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* ── Week detail ── */
+.week-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 52px 20px 16px;
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg);
+}
+.back-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--bg2);
+  border: 0.5px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--text);
+  transition: background 0.15s;
+}
+.back-btn:active { background: var(--bg3); }
+.detail-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  flex: 1;
+}
+.detail-msg { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0 16px 20px;
+}
+.stat-box {
+  background: var(--bg2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  text-align: center;
+}
+.stat-val {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+.stat-val.green { color: var(--green); }
+.stat-val.blue { color: var(--blue); }
+.stat-val.red { color: var(--red); }
+.stat-lbl { font-size: 10px; color: var(--text3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+
+.checklist-header {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text2);
+  padding: 0 20px 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.day-block {
+  margin: 0 16px 8px;
+  background: var(--bg2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.day-block.day-complete { border-color: rgba(76,175,114,0.3); }
+
+.day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+.day-label-txt {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+.day-complete-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: var(--green-dim);
+  color: var(--green);
+  animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes popIn { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+
+.check-row {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+.check-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+  border: 0.5px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  user-select: none;
+}
+.check-btn:active { transform: scale(0.97); }
+.check-btn.checked {
+  background: var(--green-dim);
+  border-color: rgba(76,175,114,0.3);
+  color: var(--green);
+}
+.check-icon {
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  font-size: 11px;
+}
+.check-btn.checked .check-icon {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.check-icon-academia {
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  font-size: 11px;
+}
+.check-btn.checked-gym .check-icon-academia {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.check-btn.checked-gym {
+  background: rgba(74,144,217,0.12);
+  border-color: rgba(74,144,217,0.25);
+  color: var(--blue);
+}
+
+/* ── Bottom padding ── */
+.bottom-space { height: 40px; flex-shrink: 0; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--bg2);
+  border: 0.5px solid var(--border2);
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  z-index: 1000;
+  pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── Install banner ── */
+.install-banner {
+  margin: 0 16px 10px;
+  background: linear-gradient(135deg, rgba(74,144,217,0.1), rgba(76,175,114,0.1));
+  border: 0.5px solid rgba(74,144,217,0.2);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.install-banner.hidden { display: none; }
+.install-text { flex: 1; font-size: 12px; color: var(--text2); line-height: 1.5; }
+.install-btn {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: 'DM Sans', sans-serif;
+  flex-shrink: 0;
+}
+.install-close {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px;
+}
+
+/* ── Scrollable body ── */
+.scroll-body { flex: 1; overflow-y: auto; padding-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<!-- HOME SCREEN -->
+<div class="screen active" id="screen-home">
+  <div class="home-header">
+    <div class="home-title">🔁 Frequência</div>
+    <div class="home-subtitle" id="home-sub">Academia &amp; dieta — vamos nessa</div>
+  </div>
+  <div class="scroll-body">
+    <!-- Streak card -->
+    <div class="streak-card" id="streak-card">
+      <div class="streak-fire" id="streak-fire">🔥</div>
+      <div>
+        <div class="streak-num" id="streak-num">0</div>
+        <div class="streak-info-label">dias seguidos</div>
+        <div class="streak-info-sub">Dieta + Academia ✓</div>
+      </div>
+      <div class="streak-stats">
+        <div class="streak-stat-num" id="total-done">0</div>
+        <div class="streak-stat-label">dias totais</div>
+      </div>
+    </div>
+
+    <!-- Mini dots all days -->
+    <div class="dots-strip" id="dots-strip"></div>
+
+    <!-- Install banner -->
+    <div class="install-banner hidden" id="install-banner">
+      <div style="font-size:20px">📲</div>
+      <div class="install-text"><strong style="color:var(--text)">Instalar no celular</strong><br>Adicione à tela inicial para usar offline</div>
+      <button class="install-btn" id="install-btn">Instalar</button>
+      <button class="install-close" id="install-close">✕</button>
+    </div>
+
+    <div class="section-label">Semanas</div>
+    <div id="weeks-list"></div>
+    <div class="bottom-space"></div>
+  </div>
+</div>
+
+<!-- WEEK DETAIL SCREEN -->
+<div class="screen" id="screen-week">
+  <div class="week-detail-header">
+    <button class="back-btn" id="back-btn">←</button>
+    <div>
+      <div class="detail-title" id="detail-title"></div>
+      <div class="detail-msg" id="detail-msg"></div>
+    </div>
+  </div>
+  <div class="scroll-body" id="week-scroll">
+    <div class="stats-row" id="detail-stats"></div>
+    <div class="checklist-header">Check-list — Academia e dieta</div>
+    <div id="days-list"></div>
+    <div class="bottom-space"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const WEEKS = [
+  {id:'w0',emoji:'🔥',name:'Semana Aquecimento',dates:'17/04 → 19/04',msg:'Boa, já começou no foco!',days:['17/04','18/04','19/04'],gymMeta:2},
+  {id:'w1',emoji:'💪',name:'Semana 1',dates:'20/04 → 26/04',msg:'Ai sim, uma semana já hein',days:['20/04','21/04','22/04','23/04','24/04','25/04','26/04'],gymMeta:3},
+  {id:'w2',emoji:'🤸',name:'Semana 2',dates:'27/04 → 03/05',msg:'Boa, continua assim',days:['27/04','28/04','29/04','30/04','01/05','02/05','03/05'],gymMeta:3},
+  {id:'w3',emoji:'😍',name:'Semana 3',dates:'04/05 → 10/05',msg:'Vambora, duas semanas já foram',days:['04/05','05/05','06/05','07/05','08/05','09/05','10/05'],gymMeta:3},
+  {id:'w4',emoji:'😎',name:'Semana 4',dates:'11/05 → 17/05',msg:'Cara voce é foda, bora pra 1 mês',days:['11/05','12/05','13/05','14/05','15/05','16/05','17/05'],gymMeta:3},
+  {id:'w5',emoji:'🤓',name:'Semana 5',dates:'18/05 → 24/05',msg:'Ai simmm, agora bora pros últimos 15 dias',days:['18/05','19/05','20/05','21/05','22/05','23/05','24/05'],gymMeta:3},
+  {id:'w6',emoji:'👽',name:'Semana 6',dates:'25/05 → 31/05',msg:'Cacete voce realmente conseguiu... parabéns 🥳',days:['25/05','26/05','27/05','28/05','29/05','30/05','31/05'],gymMeta:3},
+  {id:'w7',emoji:'🍩',name:'Semana Nutri',dates:'01/06 → 07/06',msg:'Bora, vc ja chegou até aqui... Não falha agora',days:['01/06','02/06','03/06','04/06','05/06','06/06','07/06'],gymMeta:3},
+];
+
+// ── State ──
+function loadState() {
+  try { return JSON.parse(localStorage.getItem('freq_v2') || '{}'); } catch(e) { return {}; }
+}
+function saveState() {
+  localStorage.setItem('freq_v2', JSON.stringify(state));
+}
+const state = loadState();
+
+let currentWeek = null;
+
+// ── Helpers ──
+function key(wid,day,type){ return `${wid}|${day}|${type}`; }
+function isChecked(wid,day,type){ return !!state[key(wid,day,type)]; }
+function isDayDone(wid,day){ return isChecked(wid,day,'dieta') && isChecked(wid,day,'academia'); }
+function isDayPartial(wid,day){ return isChecked(wid,day,'dieta') || isChecked(wid,day,'academia'); }
+
+function calcStreak(){
+  const all=[];
+  WEEKS.forEach(w=>w.days.forEach(d=>all.push({wid:w.id,day:d})));
+  let s=0;
+  for(let i=all.length-1;i>=0;i--){
+    if(isDayDone(all[i].wid,all[i].day)) s++;
+    else break;
+  }
+  return s;
+}
+function calcTotal(){
+  let n=0;
+  WEEKS.forEach(w=>w.days.forEach(d=>{ if(isDayDone(w.id,d)) n++; }));
+  return n;
+}
+function weekProgress(w){
+  const done=w.days.filter(d=>isDayDone(w.id,d)).length;
+  const pct=Math.round((done/w.days.length)*100);
+  const gym=w.days.filter(d=>isChecked(w.id,d,'academia')).length;
+  return {done,total:w.days.length,pct,gym};
+}
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+// ── Render home ──
+function renderHome(){
+  const streak=calcStreak();
+  const total=calcTotal();
+  document.getElementById('streak-num').textContent=streak;
+  document.getElementById('total-done').textContent=total;
+  document.getElementById('streak-fire').textContent=streak>0?'🔥':'❄️';
+  document.getElementById('home-sub').textContent=
+    streak>0?`${streak} dias em chama! Não para agora.`:`Academia & dieta — vamos nessa`;
+
+  // Dots
+  const strip=document.getElementById('dots-strip');
+  strip.innerHTML='';
+  WEEKS.forEach(w=>w.days.forEach(d=>{
+    const cls=isDayDone(w.id,d)?'done':isDayPartial(w.id,d)?'partial':'empty';
+    const el=document.createElement('div');
+    el.className=`dot-day ${cls}`;
+    el.textContent=d.split('/')[0];
+    el.title=`${d}`;
+    strip.appendChild(el);
+  }));
+  // Scroll dots to end
+  strip.scrollLeft=strip.scrollWidth;
+
+  // Weeks
+  const list=document.getElementById('weeks-list');
+  list.innerHTML='';
+  WEEKS.forEach(w=>{
+    const {done,total:tot,pct,gym}=weekProgress(w);
+    const card=document.createElement('div');
+    card.className=`week-card${pct>0?' has-progress':''}`;
+
+    let badgeClass='badge-none', badgeLabel='Não iniciado';
+    if(pct===100){badgeClass='badge-done';badgeLabel='Completo ✓';}
+    else if(pct>0){badgeClass='badge-partial';badgeLabel=`${done}/${tot} dias`;}
+
+    card.innerHTML=`
+      <div class="week-row" data-wid="${w.id}">
+        <span class="week-emoji">${w.emoji}</span>
+        <div class="week-info">
+          <div class="week-name">${w.name}</div>
+          <div class="week-dates">${w.dates}</div>
+        </div>
+        <span class="week-badge ${badgeClass}">${badgeLabel}</span>
+      </div>
+      <div class="week-progress-bar" style="${pct>0?'':'display:none'}" >
+        <div class="week-progress-fill" style="width:${pct}%"></div>
+      </div>
+    `;
+    card.querySelector('.week-row').addEventListener('click',()=>openWeek(w.id));
+    list.appendChild(card);
+  });
+}
+
+// ── Open week ──
+function openWeek(wid){
+  currentWeek=wid;
+  const w=WEEKS.find(x=>x.id===wid);
+  document.getElementById('detail-title').textContent=`${w.emoji} ${w.name} — ${w.dates}`;
+  document.getElementById('detail-msg').textContent=w.msg;
+  renderWeekDetail();
+  document.getElementById('screen-home').classList.remove('active');
+  document.getElementById('screen-week').classList.add('active');
+  document.getElementById('week-scroll').scrollTop=0;
+}
+
+function renderWeekDetail(){
+  const w=WEEKS.find(x=>x.id===currentWeek);
+  const {done,total:tot,pct,gym}=weekProgress(w);
+
+  // Stats
+  document.getElementById('detail-stats').innerHTML=`
+    <div class="stat-box"><div class="stat-val green">${done}</div><div class="stat-lbl">Dias completos</div></div>
+    <div class="stat-box"><div class="stat-val blue">${gym} / ${w.gymMeta}</div><div class="stat-lbl">Treinos meta</div></div>
+    <div class="stat-box"><div class="stat-val red">${pct}%</div><div class="stat-lbl">Progresso</div></div>
+  `;
+
+  // Days
+  const list=document.getElementById('days-list');
+  list.innerHTML='';
+  w.days.forEach(day=>{
+    const d=isChecked(w.id,day,'dieta');
+    const a=isChecked(w.id,day,'academia');
+    const done=d&&a;
+    const block=document.createElement('div');
+    block.className=`day-block${done?' day-complete':''}`;
+    block.id=`dayblock-${w.id}-${day.replace('/','_')}`;
+    block.innerHTML=`
+      <div class="day-header">
+        <div class="day-label-txt">${day}</div>
+        ${done?'<div class="day-complete-pill">✓ Dia completo</div>':''}
+      </div>
+      <div class="check-row">
+        <button class="check-btn${d?' checked':''}" data-wid="${w.id}" data-day="${day}" data-type="dieta">
+          <div class="check-icon">${d?'✓':''}</div>
+          <span>Dieta</span>
+        </button>
+        <button class="check-btn${a?' checked-gym':''}" data-wid="${w.id}" data-day="${day}" data-type="academia">
+          <div class="check-icon-academia">${a?'✓':''}</div>
+          <span>Academia</span>
+        </button>
+      </div>
+    `;
+    list.appendChild(block);
+  });
+
+  // Events
+  list.querySelectorAll('.check-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>toggle(btn.dataset.wid,btn.dataset.day,btn.dataset.type));
+  });
+}
+
+// ── Toggle ──
+function toggle(wid,day,type){
+  const k=key(wid,day,type);
+  const prev=state[k];
+  state[k]=!prev;
+  saveState();
+
+  const wasComplete=!prev && isChecked(wid,day,type==='dieta'?'academia':'dieta');
+  if(wasComplete){
+    showToast('🔥 Dia completo! Boa demais!');
+  } else if(!prev){
+    showToast(type==='dieta'?'🥗 Dieta marcada!':'💪 Treino marcado!');
+  }
+
+  renderWeekDetail();
+  renderHome();
+}
+
+// ── Back button ──
+document.getElementById('back-btn').addEventListener('click',()=>{
+  document.getElementById('screen-week').classList.remove('active');
+  document.getElementById('screen-home').classList.add('active');
+  currentWeek=null;
+});
+
+// ── PWA Install ──
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  document.getElementById('install-banner').classList.remove('hidden');
+});
+document.getElementById('install-btn').addEventListener('click',async()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const {outcome}=await deferredPrompt.userChoice;
+  if(outcome==='accepted') document.getElementById('install-banner').classList.add('hidden');
+  deferredPrompt=null;
+});
+document.getElementById('install-close').addEventListener('click',()=>{
+  document.getElementById('install-banner').classList.add('hidden');
+});
+
+// ── iOS install hint ──
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent);
+const isStandalone=window.matchMedia('(display-mode: standalone)').matches;
+if(isIOS && !isStandalone){
+  const banner=document.getElementById('install-banner');
+  banner.classList.remove('hidden');
+  banner.querySelector('.install-text').innerHTML='<strong style="color:var(--text)">Instalar no iPhone</strong><br>Toque em <strong style="color:var(--text)">Compartilhar</strong> → "Adicionar à Tela de Início"';
+  banner.querySelector('.install-btn').style.display='none';
+}
+
+// ── Service Worker ──
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+
+// ── Init ──
+renderHome();
+</script>
+</body>
+</html>
