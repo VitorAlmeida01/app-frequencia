@@ -182,7 +182,7 @@ body{max-width:540px;margin:0 auto;min-height:100dvh;padding-bottom:env(safe-are
 .empty-txt{font-size:clamp(13px,3.5vw,15px);line-height:1.6}
 
 /* toast */
-.toast{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg2);border:.5px solid var(--border2);border-radius:999px;padding:12px 22px;font-size:clamp(13px,3.5vw,15px);font-weight:500;color:var(--text);white-space:nowrap;transition:transform .3s cubic-bezier(.34,1.56,.64,1);z-index:1000;pointer-events:none}
+.toast{position:fixed;top:calc(16px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(calc(-100% - 20px));background:var(--bg2);border:.5px solid var(--border2);border-radius:999px;padding:12px 22px;font-size:clamp(13px,3.5vw,15px);font-weight:500;color:var(--text);white-space:nowrap;transition:transform .3s cubic-bezier(.34,1.56,.64,1);z-index:1000;pointer-events:none}
 .toast.show{transform:translateX(-50%) translateY(0)}
 </style>
 </head>
@@ -373,8 +373,16 @@ function calcStreak(weeks){
 }
 function calcTotal(weeks){let n=0;weeks.forEach(w=>w.days.forEach(d=>{if(isDayDone(w.id,d))n++;}));return n;}
 function weekProg(w){
-  const done=w.days.filter(d=>isDayDone(w.id,d)).length;
-  return{done,total:w.days.length,pct:Math.round((done/w.days.length)*100),gym:w.days.filter(d=>isDone(w.id,d,'academia')).length};
+  const gym=w.days.filter(d=>isDone(w.id,d,'academia')).length;
+  const dietaDone=w.days.filter(d=>isDone(w.id,d,'dieta')).length;
+  const dietaAll=dietaDone===w.days.length;
+  const gymOk=gym>=w.gymMeta;
+  const complete=dietaAll&&gymOk;
+  // progresso: média entre % dieta e % academia
+  const dietaPct=Math.round((dietaDone/w.days.length)*100);
+  const gymPct=Math.round((gym/w.gymMeta)*100);
+  const pct=complete?100:Math.round((dietaPct+Math.min(gymPct,100))/2);
+  return{gym,gymMeta:w.gymMeta,dietaDone,dietaAll,gymOk,complete,pct,total:w.days.length};
 }
 
 // ── Toast ──
@@ -410,21 +418,34 @@ function renderHome(){
   document.getElementById('streak-fire').textContent=streak>0?'🔥':'❄️';
 
   const strip=document.getElementById('dots-strip');strip.innerHTML='';
+  const todayFmt=fmt(new Date().toISOString().slice(0,10));
+  let todayDot=null;
   WEEKS.forEach(w=>w.days.forEach(d=>{
     const cls=isDayDone(w.id,d)?'done':isDayPartial(w.id,d)?'partial':'empty';
-    const el=document.createElement('div');el.className=`dot-day ${cls}`;el.textContent=d.split('/')[0];strip.appendChild(el);
+    const el=document.createElement('div');el.className=`dot-day ${cls}`;el.textContent=d.split('/')[0];
+    if(d===todayFmt){el.style.outline='2px solid var(--text2)';el.style.outlineOffset='2px';todayDot=el;}
+    strip.appendChild(el);
   }));
-  strip.scrollLeft=strip.scrollWidth;
+  requestAnimationFrame(()=>{
+    if(todayDot){strip.scrollLeft=todayDot.offsetLeft-(strip.offsetWidth/2)+(todayDot.offsetWidth/2);}
+    else{strip.scrollLeft=strip.scrollWidth;}
+  });
 
   const list=document.getElementById('weeks-list');list.innerHTML='';
   WEEKS.forEach(w=>{
-    const{done,total:tot,pct}=weekProg(w);
+    const{gym,gymMeta,dietaDone,dietaAll,gymOk,complete,pct,total}=weekProg(w);
+    const hasActivity=gym>0||dietaDone>0;
     let bCls='badge-none',bLbl='Não iniciado';
-    if(pct===100){bCls='badge-done';bLbl='Completo ✓';}
-    else if(pct>0){bCls='badge-partial';bLbl=`${done}/${tot} dias`;}
+    if(complete){bCls='badge-done';bLbl='Completo ✓';}
+    else if(hasActivity){
+      bCls='badge-partial';
+      bLbl=dietaAll?'Dieta ✓':'Dieta pendente';
+    }
+    const gymColor=gymOk?'var(--green)':gym>0?'var(--orange)':'var(--text3)';
+    const gymBadge=`<span style="font-size:clamp(10px,2.8vw,12px);font-weight:600;padding:4px 10px;border-radius:20px;background:var(--bg3);color:${gymColor};border:.5px solid var(--border);white-space:nowrap;flex-shrink:0">💪 ${gym}/${gymMeta}</span>`;
     const card=document.createElement('div');
-    card.className=`card${pct>0?' accent-green':''}`;
-    card.innerHTML=`<div class="week-row" data-wid="${w.id}"><span class="week-emoji">${w.emoji}</span><div class="week-info"><div class="week-name">${w.name}</div><div class="week-dates">${w.dates}</div></div><span class="week-badge ${bCls}">${bLbl}</span></div>${pct>0?`<div class="week-prog-bar"><div class="week-prog-fill" style="width:${pct}%"></div></div>`:''}`;
+    card.className=`card${hasActivity?' accent-green':''}`;
+    card.innerHTML=`<div class="week-row" data-wid="${w.id}"><span class="week-emoji">${w.emoji}</span><div class="week-info"><div class="week-name">${w.name}</div><div class="week-dates">${w.dates}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">${gymBadge}<span class="week-badge ${bCls}" style="margin:0">${bLbl}</span></div></div>${hasActivity?`<div class="week-prog-bar"><div class="week-prog-fill" style="width:${pct}%"></div></div>`:''}`;
     card.querySelector('.week-row').addEventListener('click',()=>openWeek(w.id));
     list.appendChild(card);
   });
@@ -445,8 +466,9 @@ function openWeek(wid){
 }
 function renderWeekDetail(){
   const w=WEEKS.find(x=>x.id===currentWid);
-  const{done,total:tot,pct,gym}=weekProg(w);
-  document.getElementById('week-stats').innerHTML=`<div class="stat-box"><div class="stat-val green">${done}</div><div class="stat-lbl">Dias completos</div></div><div class="stat-box"><div class="stat-val blue">${gym}/${w.gymMeta}</div><div class="stat-lbl">Treinos</div></div><div class="stat-box"><div class="stat-val red">${pct}%</div><div class="stat-lbl">Progresso</div></div>`;
+  const{gym,gymMeta,dietaDone,dietaAll,gymOk,complete,pct,total}=weekProg(w);
+  const gymValColor=gymOk?'green':'blue';
+  document.getElementById('week-stats').innerHTML=`<div class="stat-box"><div class="stat-val ${dietaAll?'green':'red'}">${dietaDone}/${total}</div><div class="stat-lbl">Dias dieta</div></div><div class="stat-box"><div class="stat-val ${gymValColor}">${gym}/${gymMeta}</div><div class="stat-lbl">Treinos</div></div><div class="stat-box"><div class="stat-val" style="color:${complete?'var(--green)':'var(--orange)'}">${pct}%</div><div class="stat-lbl">Progresso</div></div>`;
   const list=document.getElementById('days-list');list.innerHTML='';
   w.days.forEach(day=>{
     const dc=getC(w.id,day,'dieta'),ac=getC(w.id,day,'academia'),dayDone=dc.done&&ac.done;
